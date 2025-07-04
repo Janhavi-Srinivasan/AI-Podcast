@@ -18,11 +18,10 @@ def clean_script(text):
             continue  
         cleaned_lines.append(line)
     return "\n".join(cleaned_lines)
-def generate_voice(script_text):
+def generate_voice(script_text, voice_id):
     API_KEY = os.getenv("ELEVENLABS_API_KEY")
-    VOICE_ID = os.getenv("VOICE_ID")
     script_text = clean_script(script_text)
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {
         "xi-api-key": API_KEY,
         "Content-Type": "application/json"
@@ -31,13 +30,9 @@ def generate_voice(script_text):
         "text": script_text,
         "model_id": "eleven_monolingual_v1"
     }
-    st.write("📤 Sending request to:", url)
     st.write("📄 Cleaned Script:", script_text[:300] + "..." if len(script_text) > 300 else script_text)
-    st.write("📦 Headers:", headers)
-    st.write("📦 Payload:", data)
     try:
         response = requests.post(url, headers=headers, json=data)
-        st.write("📩 Response Code:", response.status_code)
         if response.status_code == 200:
             os.makedirs("output", exist_ok=True)
             path = "output/podcast.mp3"
@@ -49,7 +44,21 @@ def generate_voice(script_text):
             st.error("❌ ElevenLabs error:")
             st.code(response.text, language="json")
             return None
-
     except Exception as e:
         st.error(f"❌ Exception during voice generation: {str(e)}")
         return None
+def fetch_available_voices():
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    headers = {"xi-api-key": api_key}
+    url = "https://api.elevenlabs.io/v1/voices"
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            voices = response.json().get("voices", [])
+            return {
+                voice["name"]: (voice["voice_id"], voice["preview_url"])
+                for voice in voices if "preview_url" in voice
+            }
+    except Exception as e:
+        print("Error fetching voices:", e)
+    return {}
